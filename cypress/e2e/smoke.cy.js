@@ -24,24 +24,8 @@ describe('Smoke Suite', () => {
             expect(response.body.profile.role).to.have.property('role_code', 'APM');
         });
     })
+    
 
-    // it('Dashboard Screen', () => {
-    //     cy.login();
-
-    //     /*  GET dashboard API */
-    //     cy.intercept('GET', 'https://smartoperation.siddhanproducts.com/api/user/getAirportData').as('getDashboardData');
-    //     cy.visit('https://smartoperation.siddhanproducts.com/#/dashboard')
-    //     cy.wait('@getDashboardData').its('res').then((res) => {
-    //         const task = res?.body?.data?.[0]
-    //         const innerTasks = task?.taks?.[0]
-    //         expect(task).to.have.property('_id').that.is.a('string');
-    //         expect(task).to.have.property('arrivalFlight').that.is.a('string');
-    //         expect(task).to.have.property('departureFlight').that.is.a('string');
-    //         expect(innerTasks).to.have.property('taskname').that.is.a('string');
-    //         expect(innerTasks).to.have.property('taskDelayMinutes').that.is.a('number');
-    //         expect(response.statusCode).to.eq(200);
-    //     });
-    // })
 
 
 
@@ -80,3 +64,84 @@ describe('Smoke Suite', () => {
 
     });
 })
+    describe('Dashboard Screen Smoke Test', () => {
+        beforeEach(() => {
+            /* Intercepting API calls with aliases */
+            cy.intercept('GET', 'https://smartoperation.siddhanproducts.com/api/master/employee/getWidgetConfigData').as('getWidgetConfigData');
+            cy.intercept('GET', 'https://smartoperation.siddhanproducts.com/api/master/airport-config/getAllTerminal').as('getAllTerminal');
+            cy.intercept('GET', 'https://smartoperation.siddhanproducts.com/api/operation/notificationCenter/getAllMessage').as('getAllMessage');
+
+            cy.login()
+            cy.url().should('include', '/dashboard')
+        });
+
+        it('should check DOM elements, verify API calls, and validate payloads', () => {
+            /* Checking for key DOM elements to ensure the dashboard loaded correctly */
+            cy.get('.flightOperated').should('be.visible');
+            cy.get('.attendance-widget > .p-2').should('be.visible');
+
+            /* Waiting for all API calls and verifying status codes */
+            cy.wait('@getWidgetConfigData').then((interception) => {
+                expect(interception.response.statusCode).to.eq(200);
+                const responseBody = interception.response.body;
+
+                /* Validate the structure and content of the getWidgetConfigData response */
+                expect(responseBody).to.have.property('success', true);
+                expect(responseBody).to.have.property('groupedWidgets').that.is.an('array').with.length.of.at.least(1);
+
+                responseBody.groupedWidgets.forEach(widgetGroup => {
+                    Object.values(widgetGroup).forEach(widget => {
+                        expect(widget).to.have.all.keys(['_id', 'name', 'view', 'col', 'order', 'img', 'description', 'disable']);
+                        expect(widget.view).to.be.a('boolean');
+                        expect(widget.col).to.be.a('number');
+                        expect(widget.order).to.be.a('number');
+                        expect(widget.img).to.be.a('string').and.to.match(/^https:\/\/soassests\.s3\.ap-south-1\.amazonaws\.com\/.*\.png$/);
+                    });
+                });
+            });
+
+            cy.wait('@getAllTerminal').then((interception) => {
+                expect(interception.response.statusCode).to.eq(200);
+                const responseBody = interception.response.body;
+
+                /* Validate the structure and content of the getAllTerminal response */
+                expect(responseBody).to.have.property('success', true);
+                expect(responseBody).to.have.property('data').that.is.an('array').with.length.of.at.least(1);
+
+                responseBody.data.forEach(terminal => {
+                    expect(terminal).to.have.all.keys(['_id', 'airport', 'name', 'abbreviation', '__v']);
+                    expect(terminal._id).to.be.a('string');
+                    expect(terminal.airport).to.be.a('string');
+                    expect(terminal.name).to.be.a('string');
+                    expect(terminal.abbreviation).to.be.a('string');
+                    expect(terminal.__v).to.be.a('number');
+                });
+            });
+
+            cy.wait('@getAllMessage').then((interception) => {
+                expect(interception.response.statusCode).to.eq(200);
+                const responseBody = interception.response.body;
+
+                /* Validate the structure and content of the getAllMessage response */
+                expect(responseBody).to.have.property('success', true);
+
+                const notificationCenter = responseBody.respayload.notificationCenter;
+                expect(notificationCenter).to.be.an('array').with.length.of.at.least(1);
+
+                notificationCenter.map((notification) => {
+                    expect(notification).to.have.all.keys(['_id', 'services', 'behalf', 'date', 'designation', 'employee', 'message', 'mode', 'time', 'attachment']);
+                    expect(notification._id).to.be.a('string');
+                    expect(notification.services).to.be.an('array');
+                    expect(notification.behalf).to.be.an('array');
+                    expect(notification.date).to.be.a('string');
+                    expect(notification.designation).to.be.an('array');
+                    expect(notification.employee).to.be.an('array');
+                    expect(notification.message).to.be.a('string');
+                    expect(notification.mode).to.be.an('array');
+                    expect(notification.time).to.be.a('string');
+                    expect(notification.attachment).to.be.an('array');
+                });
+            });
+        });
+    });
+
