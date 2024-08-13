@@ -1,0 +1,17 @@
+{
+    "department1": {
+        "name": "Test Department 1",
+        "code": "DEP001",
+        "label": "Label 1"
+    },
+    "department2": {
+        "name": "Test Department 2",
+        "code": "DEP002",
+        "label": "Label 2"
+    },
+    "department11": {
+        "name": "Test Department 11",
+        "code": "DEP002",
+        "label": "Label 11"
+    }
+}
